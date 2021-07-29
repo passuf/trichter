@@ -22,7 +22,7 @@ class TrichterServer:
     def run(self, caddy_binary='./bin/caddy'):
         subprocess.run([caddy_binary, 'run', '--config', self.caddy_config])
 
-    def create_tunnel(self, port, domain):
+    def create_tunnel(self, port, domain, http_basic_user=None, http_basic_password=None):
         # TODO: Check if port is available
 
         tunnel_id = str(uuid.uuid4())
@@ -30,16 +30,56 @@ class TrichterServer:
 
         body = {
             "@id": tunnel_id,
-            "match": [{
-                "host": [domain],
-            }],
-            "handle": [{
-                "handler": "reverse_proxy",
-                "upstreams": [{
-                    "dial": ':' + str(port)
-                }]
-            }]
+            "handle": [
+                {
+                    "handler": "subroute",
+                    "routes": [
+                        {
+                            "handle": [
+                                {
+                                    "handler": "reverse_proxy",
+                                    "upstreams": [{"dial": ':' + str(port)}]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "match": [{"host": [domain], }],
         }
+
+        if http_basic_user is not None and http_basic_password is not None:
+            body['handle'][0]['routes'].insert(
+                0,
+                {
+                    "handle": [
+                        {
+                            "handler": "authentication",
+                            "providers": {
+                                "http_basic": {
+                                    "accounts": [
+                                        {
+                                            "password": http_basic_password,
+                                            "username": http_basic_user
+                                        }
+                                    ],
+                                    "hash": {
+                                        "algorithm": "bcrypt"
+                                    },
+                                    "hash_cache": {}
+                                }
+                            }
+                        }
+                    ],
+                    "match": [
+                        {
+                            "path": [
+                                "/*"
+                            ]
+                        }
+                    ]
+                }
+            )
 
         url = f'http://{self.caddy_host}:{self.caddy_port}/config/apps/http/servers/trichter/routes'
         self.__send_caddy_request__('POST', url, body)
@@ -79,12 +119,14 @@ class TrichterClient:
         self.server = server
         self.trichter_command = trichter_command
 
-    def create_tunnel(self, port, domain):
+    def create_tunnel(self, port, domain, http_basic_user=None, http_basic_password=None):
         remote_port = random.randint(40000, 65000)
 
-        result = subprocess.run(
-            ['ssh', '-tR', f'{remote_port}:localhost:{port}', self.server,
-             self.trichter_command, 'server', 'tunnel', '--port', str(remote_port), '--domain', domain],
-            capture_output=True, text=True
-        )
+        commands = ['ssh', '-tR', f'{remote_port}:localhost:{port}', self.server, self.trichter_command, 'server',
+                    'tunnel', '--port', str(remote_port), '--domain', domain]
+
+        if http_basic_user is not None and http_basic_password is not None:
+            commands += ['--http_basic_user', http_basic_user, '--http_basic_password', http_basic_password]
+
+        result = subprocess.run(commands, capture_output=True, text=True)
         print(result.stdout, result.stderr)

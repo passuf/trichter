@@ -17,12 +17,14 @@ def server_run(args):
 
 def server_tunnel(args):
     trichter_server = TrichterServer(args.caddy_host, args.caddy_port, args.caddy_config)
-    trichter_server.create_tunnel(port=args.port, domain=args.domain)
+    trichter_server.create_tunnel(port=args.port, domain=args.domain, http_basic_user=args.http_basic_user,
+                                  http_basic_password=args.http_basic_password)
 
 
 def tunnel(args):
     trichter_client = TrichterClient(server=args.server, trichter_command=args.trichter_command)
-    trichter_client.create_tunnel(port=args.port, domain=args.domain)
+    trichter_client.create_tunnel(port=args.port, domain=args.domain, http_basic_user=args.http_basic_user,
+                                  http_basic_password=args.http_basic_password)
 
 
 if __name__ == '__main__':
@@ -34,6 +36,8 @@ if __name__ == '__main__':
     client_parser.add_argument('-p', '--port', type=int, required=True, help='Local port to tunnel')
     client_parser.add_argument('-d', '--domain', type=str, required=True, help='Domain to use for the tunnel')
     client_parser.add_argument('-s', '--server', type=str, required=True, help='Trichter server to use')
+    client_parser.add_argument('--http_basic_user', type=str, required=False, help='HTTP Basic Auth user')
+    client_parser.add_argument('--http_basic_password', type=str, required=False, help='HTTP Basic Auth password hash')
     client_parser.add_argument('--trichter_command', default='trichter', type=str, help='Trichter command to execute')
 
     server_parser = subparsers.add_parser('server')
@@ -54,6 +58,9 @@ if __name__ == '__main__':
     server_tunnel_parser = server_subparsers.add_parser('tunnel')
     server_tunnel_parser.add_argument('-p', '--port', type=int, required=True, help='Local port to tunnel')
     server_tunnel_parser.add_argument('-d', '--domain', type=str, required=True, help='Domain to use for the tunnel')
+    server_tunnel_parser.add_argument('--http_basic_user', type=str, required=False, help='HTTP Basic Auth user')
+    server_tunnel_parser.add_argument('--http_basic_password', type=str, required=False,
+                                      help='HTTP Basic Auth password hash')
 
     args = parser.parse_args()
     if args.target == 'tunnel':
