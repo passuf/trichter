@@ -1,6 +1,6 @@
 import json
 import time
-import uuid
+import hashlib
 import subprocess
 import random
 from urllib import request
@@ -25,7 +25,7 @@ class TrichterServer:
     def create_tunnel(self, port, domain, http_basic_user=None, http_basic_password=None):
         # TODO: Check if port is available
 
-        tunnel_id = str(uuid.uuid4())
+        tunnel_id = hashlib.sha256(f'{domain}'.encode('utf-8')).hexdigest()
         print(f'Creating tunnel {tunnel_id} - {domain}')
 
         body = {
@@ -90,8 +90,14 @@ class TrichterServer:
                 }
             )
 
-        url = f'http://{self.caddy_host}:{self.caddy_port}/config/apps/http/servers/trichter/routes'
-        self.__send_caddy_request__('POST', url, body)
+        if self.__tunnel_exists__(tunnel_id):
+            method = 'PATCH'
+            url = f'http://{self.caddy_host}:{self.caddy_port}/id/{tunnel_id}'
+        else:
+            method = 'POST'
+            url = f'http://{self.caddy_host}:{self.caddy_port}/config/apps/http/servers/trichter/routes'
+
+        self.__send_caddy_request__(method, url, body)
 
         while True:
             try:
@@ -105,6 +111,20 @@ class TrichterServer:
 
         url = f'http://{self.caddy_host}:{self.caddy_port}/id/{tunnel_id}'
         self.__send_caddy_request__('DELETE', url)
+
+    def __tunnel_exists__(self, tunnel_id):
+        url = f'http://{self.caddy_host}:{self.caddy_port}/config/'
+        response = self.__send_caddy_request__('GET', url)
+
+        data = json.load(response)
+        try:
+            for route in data['apps']['http']['servers']['trichter']['routes']:
+                if route['@id'] == tunnel_id:
+                    return True
+        except Exception:
+            pass
+
+        return False
 
     @staticmethod
     def __send_caddy_request__(method: str, url: str, body: dict = None, headers: dict = None):
@@ -121,6 +141,8 @@ class TrichterServer:
 
 
 class TrichterClient:
+    RECONNECT_TIMEOUT = 60
+
     server: str
     trichter_command: str
 
@@ -137,5 +159,13 @@ class TrichterClient:
         if http_basic_user is not None and http_basic_password is not None:
             commands += ['--http_basic_user', http_basic_user, '--http_basic_password', http_basic_password]
 
-        result = subprocess.run(commands, capture_output=True, text=True)
-        print(result.stdout, result.stderr)
+        reconnect = True
+        while reconnect:
+            reconnect = False
+            print('Creating tunnel')
+            result = subprocess.run(commands, capture_output=True, text=True)
+            print(result.stdout, result.stderr)
+            if 'closed by remote host.' in str(result.stderr):
+                reconnect = True
+                print(f'Trying to reconnect in {self.RECONNECT_TIMEOUT} seconds')
+                time.sleep(self.RECONNECT_TIMEOUT)
