@@ -38,6 +38,15 @@ class TrichterServer:
                             "handle": [
                                 {
                                     "handler": "reverse_proxy",
+                                    "headers": {
+                                        "request": {
+                                            "add": {
+                                                "caddy-http-auth-user": [
+                                                    "{http.auth.user.id}"
+                                                ]
+                                            }
+                                        }
+                                    },
                                     "upstreams": [{"dial": ':' + str(port)}]
                                 }
                             ]
