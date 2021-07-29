@@ -112,17 +112,22 @@ class TrichterServer:
         url = f'http://{self.caddy_host}:{self.caddy_port}/id/{tunnel_id}'
         self.__send_caddy_request__('DELETE', url)
 
-    def __tunnel_exists__(self, tunnel_id):
+    def list_tunnels(self):
+        for tunnel in self.__get_tunnels__():
+            host = tunnel['match'][0]['host'][0]
+            print(f'{tunnel["@id"]} --> {host}')
+
+    def __get_tunnels__(self):
         url = f'http://{self.caddy_host}:{self.caddy_port}/config/'
         response = self.__send_caddy_request__('GET', url)
-
         data = json.load(response)
-        try:
-            for route in data['apps']['http']['servers']['trichter']['routes']:
-                if route['@id'] == tunnel_id:
-                    return True
-        except Exception:
-            pass
+
+        return data['apps']['http']['servers']['trichter']['routes']
+
+    def __tunnel_exists__(self, tunnel_id):
+        for tunnel in self.__get_tunnels__():
+            if tunnel['@id'] == tunnel_id:
+                return True
 
         return False
 

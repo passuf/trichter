@@ -14,6 +14,9 @@ def server_run(args):
     trichter_server = TrichterServer(args.caddy_host, args.caddy_port, args.caddy_config)
     trichter_server.run(caddy_binary=args.caddy_binary)
 
+def server_list(args):
+    trichter_server = TrichterServer(args.caddy_host, args.caddy_port, args.caddy_config)
+    trichter_server.list_tunnels()
 
 def server_tunnel(args):
     trichter_server = TrichterServer(args.caddy_host, args.caddy_port, args.caddy_config)
@@ -54,6 +57,9 @@ if __name__ == '__main__':
     server_run_parser = server_subparsers.add_parser('run')
     server_run_parser.add_argument('--caddy_binary', default='./bin/caddy', type=str, help='Path to Caddy binary')
 
+    # trichter server list
+    server_list_parser = server_subparsers.add_parser('list')
+
     # trichter server tunnel --port 40001 --domain test.trichter.io
     server_tunnel_parser = server_subparsers.add_parser('tunnel')
     server_tunnel_parser.add_argument('-p', '--port', type=int, required=True, help='Local port to tunnel')
@@ -71,5 +77,7 @@ if __name__ == '__main__':
         server_run(args)
     elif args.target == 'server' and args.action == 'tunnel':
         server_tunnel(args)
+    elif args.target == 'server' and args.action == 'list':
+        server_list(args)
     else:
         parser.print_usage()
