@@ -20,7 +20,7 @@ class TrichterServer:
         raise NotImplemented('Automatic server setup is not yet implemented.')
 
     def run(self, caddy_binary='./bin/caddy'):
-        subprocess.run([caddy_binary, 'run', '--config', self.caddy_config])
+        subprocess.run([caddy_binary, 'run', '--resume', '--config', self.caddy_config])
 
     def create_tunnel(self, port, domain, http_basic_user=None, http_basic_password=None):
         # TODO: Check if port is available
