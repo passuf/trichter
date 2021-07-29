@@ -1,0 +1,13 @@
+{
+  "apps": {
+    "http": {
+      "servers": {
+        "trichter": {
+          "listen": [":443"],
+          "routes": [
+          ]
+        }
+      }
+    }
+  }
+}
